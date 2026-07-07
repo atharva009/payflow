@@ -27,6 +27,13 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: false
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jws-algorithms: HS256
+          secret-key: ${JWT_SECRET}   # minimum 32 chars for HS256
+
 logging:
   level:
     com.payments: INFO
