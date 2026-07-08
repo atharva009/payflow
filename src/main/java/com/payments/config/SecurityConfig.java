@@ -1,6 +1,12 @@
 package com.payments.config;
 
+import tools.jackson.databind.ObjectMapper;
+import com.payments.idempotency.IdempotencyFilter;
+import com.payments.idempotency.IdempotencyService;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -62,5 +68,22 @@ public class SecurityConfig {
                 List.of(new SimpleGrantedAuthority(
                     "ROLE_" + jwt.getClaimAsString("role"))));
         }};
+    }
+
+    // Idempotency runs AFTER the Spring Security filter chain — authenticate first,
+    // deduplicate second. Registered (not @Component) to control ordering precisely
+    // and avoid double registration. Scoped to POST /api/v1/payments only.
+    @Bean
+    public FilterRegistrationBean<IdempotencyFilter> idempotencyFilterRegistration(
+            IdempotencyService idempotencyService,
+            RedissonClient redissonClient,
+            ObjectMapper objectMapper) {
+        FilterRegistrationBean<IdempotencyFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new IdempotencyFilter(idempotencyService, redissonClient, objectMapper));
+        registration.addUrlPatterns("/api/v1/payments");
+        // Boot 4: DEFAULT_FILTER_ORDER (-100) relocated from SecurityProperties to
+        // SecurityFilterProperties. Same value → +10 = -90, i.e. after the security chain.
+        registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER + 10);
+        return registration;
     }
 }
