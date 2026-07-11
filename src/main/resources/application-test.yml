@@ -1,0 +1,14 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          secret-key: test-secret-key-minimum-32-chars-ok
+
+mock-processor:
+  success-rate: 1.0
+  transient-failure-rate: 0.0
+  permanent-failure-rate: 0.0
+  timeout-rate: 0.0
+  min-latency-ms: 0
+  max-latency-ms: 0
