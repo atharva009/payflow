@@ -44,6 +44,43 @@ spring:
           jws-algorithms: HS256
           secret-key: ${JWT_SECRET}   # minimum 32 chars for HS256
 
+resilience4j:
+  retry:
+    instances:
+      processor:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.payments.exception.TransientProcessorException
+        ignore-exceptions:
+          - com.payments.exception.PermanentProcessorException
+
+  circuit-breaker:
+    instances:
+      processor:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 2s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+
+  timeout:
+    instances:
+      processor:
+        timeout-duration: 5s
+
+mock-processor:
+  success-rate: 0.85
+  transient-failure-rate: 0.10
+  permanent-failure-rate: 0.03
+  timeout-rate: 0.02
+  min-latency-ms: 50
+  max-latency-ms: 200
+
 logging:
   level:
     com.payments: INFO
