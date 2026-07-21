@@ -116,10 +116,32 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
+        <!-- ===== ACTUATOR / OBSERVABILITY ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Phase 1: OTel bridge for MDC trace IDs. No exporter yet.
+             Version managed by Boot BOM. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
         <!-- ===== VALIDATION ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ===== LOGGING ===== -->
+        <!-- Version 9.0 REQUIRES Jackson 3. Compatible with Boot 4's Jackson 3.
+             Do NOT use 7.x or 8.x with Boot 4 — they require Jackson 2. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>9.0</version>
         </dependency>
 
         <!-- ===== LOMBOK ===== -->
