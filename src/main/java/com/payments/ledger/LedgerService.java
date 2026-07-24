@@ -7,6 +7,7 @@ import com.payments.payment.Payment;
 import com.payments.payment.PaymentStatus;
 import com.payments.payment.PaymentStatusHistory;
 import com.payments.payment.PaymentStatusHistoryRepository;
+import com.payments.refund.RefundType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,6 +117,43 @@ public class LedgerService {
         ledgerEntryRepository.save(debitEntry);
 
         // 4. Save updated balances
+        accountRepository.save(source);
+        accountRepository.save(dest);
+    }
+
+    /**
+     * Used by Step 8 (refund). Signature present now so the class compiles; full logic
+     * is implemented in Step 8.
+     */
+    @Transactional
+    public void writeRefundEntries(Payment payment, RefundType refundType) {
+        Account source = accountRepository.findByIdForUpdate(payment.getSourceAccountId())
+            .orElseThrow(() -> new AccountNotFoundException(payment.getSourceAccountId()));
+        Account dest = accountRepository.findByIdForUpdate(payment.getDestAccountId())
+            .orElseThrow(() -> new AccountNotFoundException(payment.getDestAccountId()));
+
+        if (refundType == RefundType.VOID) {
+            // VOID: payment never settled — reverse the authorization
+            // Same ledger logic as reverseAuthorization
+            source.credit(payment.getAmount());
+            dest.debit(payment.getAmount());
+            ledgerEntryRepository.save(LedgerEntry.credit(
+                payment.getId(), source.getId(), payment.getAmount(),
+                source.getBalance(), "Refund VOID — authorization reversed"));
+            ledgerEntryRepository.save(LedgerEntry.debit(
+                payment.getId(), dest.getId(), payment.getAmount(),
+                dest.getBalance(), "Refund VOID — authorization reversed"));
+        } else {
+            // REVERSAL: payment settled — new entries flow funds back
+            source.credit(payment.getAmount());
+            dest.debit(payment.getAmount());
+            ledgerEntryRepository.save(LedgerEntry.credit(
+                payment.getId(), source.getId(), payment.getAmount(),
+                source.getBalance(), "Refund REVERSAL — settled payment returned"));
+            ledgerEntryRepository.save(LedgerEntry.debit(
+                payment.getId(), dest.getId(), payment.getAmount(),
+                dest.getBalance(), "Refund REVERSAL — settled payment returned"));
+        }
         accountRepository.save(source);
         accountRepository.save(dest);
     }
