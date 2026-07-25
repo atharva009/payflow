@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -33,9 +35,33 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(toResponse(payment));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<PaymentDetailResponse> getPayment(@PathVariable UUID id) {
+        Payment payment = paymentService.getPayment(id);
+        return ResponseEntity.ok(detail(payment));
+    }
+
+    @PostMapping("/{id}/capture")
+    public ResponseEntity<PaymentDetailResponse> capture(
+            @PathVariable UUID id, JwtAuthenticationToken jwtToken) {
+        Payment payment = paymentService.capturePayment(id, accountIds(jwtToken));
+        return ResponseEntity.ok(detail(payment));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<PaymentDetailResponse> cancel(
+            @PathVariable UUID id, JwtAuthenticationToken jwtToken) {
+        Payment payment = paymentService.cancelPayment(id, accountIds(jwtToken));
+        return ResponseEntity.ok(detail(payment));
+    }
+
     private List<UUID> accountIds(JwtAuthenticationToken jwtToken) {
         return ((List<?>) jwtToken.getToken().getClaim("accountIds"))
                 .stream().map(s -> UUID.fromString(s.toString())).toList();
+    }
+
+    private PaymentDetailResponse detail(Payment payment) {
+        return PaymentDetailResponse.from(payment, paymentService.getStatusHistory(payment.getId()));
     }
 
     private PaymentResponse toResponse(Payment payment) {
