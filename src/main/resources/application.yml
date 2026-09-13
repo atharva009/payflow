@@ -37,6 +37,12 @@ spring:
           min-idle: 2
           max-idle: 5
 
+  batch:
+    jdbc:
+      initialize-schema: never   # MUST be never — schema managed by Flyway V11
+    job:
+      enabled: false              # Prevents all batch jobs running at startup
+
   security:
     oauth2:
       resourceserver:
