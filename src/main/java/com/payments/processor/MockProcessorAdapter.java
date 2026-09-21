@@ -2,12 +2,18 @@ package com.payments.processor;
 
 import com.payments.exception.PermanentProcessorException;
 import com.payments.exception.TransientProcessorException;
+import com.payments.payment.PaymentRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 
 @Component
 public class MockProcessorAdapter implements ProcessorAdapter {
@@ -18,6 +24,12 @@ public class MockProcessorAdapter implements ProcessorAdapter {
     private final double timeoutRate;
     private final int minLatencyMs;
     private final int maxLatencyMs;
+
+    // Field-injected (not constructor) so the 6-arg constructor used by the
+    // direct-construction unit test (MockProcessorAdapterTest) stays intact.
+    // Only getProcessedPayments uses it; charge/refund do not.
+    @Autowired(required = false)
+    private PaymentRepository paymentRepository;
 
     public MockProcessorAdapter(
             @Value("${mock-processor.success-rate}") double successRate,
@@ -37,6 +49,9 @@ public class MockProcessorAdapter implements ProcessorAdapter {
     @Override
     @CircuitBreaker(name = "processor")
     @Retry(name = "processor")
+    // @TimeLimiter removed (authorised): the Resilience4j aspect hard-throws
+    // IllegalReturnTypeException on a synchronous (non-CompletionStage) return type.
+    // The resilience4j.timeout.* config in application.yml is retained for Phase 2 (async).
     public ProcessorResponse charge(String processorRef, BigDecimal amount, String currency) {
         simulateLatency();
         double roll = Math.random();
@@ -56,6 +71,16 @@ public class MockProcessorAdapter implements ProcessorAdapter {
     public ProcessorResponse refund(String processorRef, BigDecimal amount) {
         simulateLatency();
         return new ProcessorResponse(true, processorRef, null);
+    }
+
+    @Override
+    public List<ProcessorRecord> getProcessedPayments(LocalDate date) {
+        Instant start = date.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        // The processor's view: every payment it was handed a processor_ref for on this date.
+        return paymentRepository.findByProcessorRefIsNotNullAndCreatedAtBetween(start, end).stream()
+                .map(p -> new ProcessorRecord(p.getProcessorRef(), p.getAmount(), p.getStatus().name()))
+                .toList();
     }
 
     private void simulateLatency() {
