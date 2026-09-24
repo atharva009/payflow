@@ -87,7 +87,24 @@ mock-processor:
   min-latency-ms: 50
   max-latency-ms: 200
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0   # 100% in dev; use 0.1 in production
+
 logging:
   level:
     com.payments: INFO
     org.springframework.batch: INFO
+  structured:
+    format:
+      console: ecs

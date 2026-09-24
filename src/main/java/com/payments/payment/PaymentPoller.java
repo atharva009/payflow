@@ -6,6 +6,7 @@ import com.payments.processor.ProcessorAdapter;
 import com.payments.processor.ProcessorResponse;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Component
 public class PaymentPoller {
 
@@ -71,11 +73,17 @@ public class PaymentPoller {
 
             // Transaction B — authorize: ledger + balance + status
             self.completeAuthorization(refreshed);
+            log.info("Payment authorized paymentId={} processorRef={}",
+                    refreshed.getId(), refreshed.getProcessorRef());
 
         } catch (PermanentProcessorException e) {
+            log.warn("Payment permanently failed paymentId={} reason={}",
+                    refreshed.getId(), e.getMessage());
             self.failPayment(refreshed, e.getMessage());
         } catch (Exception e) {
             // Transient failure after all retries exhausted, circuit open, or authorization rejected
+            log.warn("Payment failed after retries paymentId={} reason=PROCESSOR_UNAVAILABLE",
+                    refreshed.getId());
             self.failPayment(refreshed, "PROCESSOR_UNAVAILABLE");
         }
     }

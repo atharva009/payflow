@@ -8,9 +8,11 @@ import com.payments.payment.PaymentStatus;
 import com.payments.payment.PaymentStatusHistory;
 import com.payments.payment.PaymentStatusHistoryRepository;
 import com.payments.refund.RefundType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class LedgerService {
 
@@ -62,6 +64,10 @@ public class LedgerService {
         );
         ledgerEntryRepository.save(debitEntry);
         ledgerEntryRepository.save(creditEntry);
+
+        log.info("Ledger entries written paymentId={} debitAccount={} creditAccount={} amount={}",
+                payment.getId(), payment.getSourceAccountId(),
+                payment.getDestAccountId(), payment.getAmount());
 
         // 5. Save updated account balances
         accountRepository.save(source);

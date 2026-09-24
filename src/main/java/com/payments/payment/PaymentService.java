@@ -7,6 +7,7 @@ import com.payments.idempotency.CachedResponse;
 import com.payments.idempotency.IdempotencyService;
 import com.payments.ledger.LedgerService;
 import io.micrometer.core.instrument.MeterRegistry;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class PaymentService {
 
@@ -51,6 +53,8 @@ public class PaymentService {
             return null;
         }
 
+        log.info("Creating payment idempotencyKey={} sourceAccount={} amount={} currency={}",
+                idempotencyKey, request.sourceAccountId(), request.amount(), request.currency());
 
         // Validate both accounts exist and are in a usable state (throws on invalid).
         accountService.validateForPayment(request.sourceAccountId(), request.destAccountId());
