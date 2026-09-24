@@ -9,6 +9,9 @@ import com.payments.account.AccountRepository;
 import com.payments.account.AccountService;
 import com.payments.ledger.LedgerEntryRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -38,6 +41,8 @@ import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,6 +80,10 @@ class RefundIntegrationTest {
     AccountRepository accountRepository;
     @Autowired
     LedgerEntryRepository ledgerEntryRepository;
+    @Autowired
+    JobLauncher jobLauncher;
+    @Autowired
+    Job settlementJob;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -207,6 +216,31 @@ class RefundIntegrationTest {
         assertEquals(0, accountRepository.findById(source).orElseThrow()
                 .getBalance().compareTo(new BigDecimal("500.00")));  // restored
         assertEquals(4, ledgerEntryRepository.findByPaymentId(paymentId).size()); // 2 auth + 2 void
+    }
+
+    @Test
+    void reversal_refund_on_settled_payment() throws Exception {
+        UUID[] ids = capturedPayment("500.00", "150.00");
+        UUID paymentId = ids[0];
+        UUID source = ids[1];
+        String jwt = mintJwt(source);
+
+        // Drive the payment to SETTLED via the settlement job (synchronous JobLauncher).
+        jobLauncher.run(settlementJob, new JobParametersBuilder()
+                .addLong("run.id", System.nanoTime())
+                .addString("date", LocalDate.now(ZoneOffset.UTC).toString())
+                .toJobParameters());
+        waitForStatus(paymentId, jwt, "SETTLED");
+
+        ResponseEntity<String> resp = refund(paymentId, jwt, "150.00");
+        assertEquals(HttpStatus.ACCEPTED, resp.getStatusCode());
+        assertEquals("REVERSAL", field(resp.getBody(), "refundType"));
+
+        ResponseEntity<String> after = get(paymentId, jwt);
+        assertEquals("REFUNDED", field(after.getBody(), "status"));
+
+        assertEquals(0, accountRepository.findById(source).orElseThrow()
+                .getBalance().compareTo(new BigDecimal("500.00")));   // restored
     }
 
     @Test
