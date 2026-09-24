@@ -6,6 +6,7 @@ import com.payments.exception.PaymentNotFoundException;
 import com.payments.idempotency.CachedResponse;
 import com.payments.idempotency.IdempotencyService;
 import com.payments.ledger.LedgerService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,17 +22,20 @@ public class PaymentService {
     private final AccountService accountService;
     private final IdempotencyService idempotencyService;
     private final LedgerService ledgerService;
+    private final MeterRegistry meterRegistry;
 
     public PaymentService(PaymentRepository paymentRepository,
                           PaymentStatusHistoryRepository paymentStatusHistoryRepository,
                           AccountService accountService,
                           IdempotencyService idempotencyService,
-                          LedgerService ledgerService) {
+                          LedgerService ledgerService,
+                          MeterRegistry meterRegistry) {
         this.paymentRepository = paymentRepository;
         this.paymentStatusHistoryRepository = paymentStatusHistoryRepository;
         this.accountService = accountService;
         this.idempotencyService = idempotencyService;
         this.ledgerService = ledgerService;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
@@ -46,6 +50,7 @@ public class PaymentService {
         if (cached.isPresent()) {
             return null;
         }
+
 
         // Validate both accounts exist and are in a usable state (throws on invalid).
         accountService.validateForPayment(request.sourceAccountId(), request.destAccountId());
@@ -63,6 +68,8 @@ public class PaymentService {
                 request.amount(),
                 request.currency());
         Payment saved = paymentRepository.save(payment);
+
+        meterRegistry.counter("payments.created", "currency", saved.getCurrency()).increment();
 
         // Initial history row: from=null, to=PENDING, reason=null.
         paymentStatusHistoryRepository.save(

@@ -103,6 +103,7 @@ public class PaymentPoller {
     public void completeAuthorization(Payment payment) {
         ledgerService.authorizePayment(payment);
         paymentRepository.save(payment);
+        meterRegistry.counter("payments.authorized").increment();
     }
 
     @Transactional
@@ -111,5 +112,6 @@ public class PaymentPoller {
         paymentRepository.save(payment);
         paymentStatusHistoryRepository.save(PaymentStatusHistory.record(
                 payment.getId(), PaymentStatus.PENDING, PaymentStatus.FAILED, reason));
+        meterRegistry.counter("payments.failed", "reason", reason).increment();
     }
 }
