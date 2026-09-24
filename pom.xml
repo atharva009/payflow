@@ -150,6 +150,15 @@
             <version>9.0</version>
         </dependency>
 
+        <!-- ===== API DOCUMENTATION ===== -->
+        <!-- Version 3.x is the Spring Boot 4 branch.
+             Do NOT use 2.x — that is the Boot 3.x branch. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
         <!-- ===== LOMBOK ===== -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -157,6 +166,7 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- ===== TEST DEPENDENCIES ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -182,6 +192,7 @@
             <artifactId>spring-batch-test</artifactId>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
 
     <build>

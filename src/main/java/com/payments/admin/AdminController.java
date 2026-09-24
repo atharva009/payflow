@@ -7,6 +7,9 @@ import com.payments.reconciliation.ReconciliationReport;
 import com.payments.reconciliation.ReconciliationReportRepository;
 import com.payments.settlement.SettlementBatch;
 import com.payments.settlement.SettlementBatchRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -26,6 +29,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin")
+@Tag(name = "Admin", description = "Administrative operations (ROLE_ADMIN)")
 public class AdminController {
 
     private final JobLauncher jobLauncher;
@@ -49,6 +53,8 @@ public class AdminController {
         this.settlementBatchRepository = settlementBatchRepository;
     }
 
+    @Operation(summary = "List payments by status (paginated)")
+    @ApiResponse(responseCode = "200", description = "Page of payments")
     @GetMapping("/payments")
     public ResponseEntity<Page<Payment>> listPayments(
             @RequestParam PaymentStatus status,
@@ -57,11 +63,16 @@ public class AdminController {
         return ResponseEntity.ok(paymentRepository.findByStatus(status, PageRequest.of(page, size)));
     }
 
+    @Operation(summary = "List reconciliation reports")
+    @ApiResponse(responseCode = "200", description = "Reports")
     @GetMapping("/reconciliation")
     public ResponseEntity<List<ReconciliationReport>> listReconciliationReports() {
         return ResponseEntity.ok(reconciliationReportRepository.findAll());
     }
 
+    @Operation(summary = "Get reconciliation report detail")
+    @ApiResponse(responseCode = "200", description = "Report")
+    @ApiResponse(responseCode = "404", description = "Report not found")
     @GetMapping("/reconciliation/{id}")
     public ResponseEntity<ReconciliationReport> reconciliationReport(@PathVariable UUID id) {
         return reconciliationReportRepository.findById(id)
@@ -69,6 +80,8 @@ public class AdminController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Trigger reconciliation job")
+    @ApiResponse(responseCode = "202", description = "Job launched")
     @PostMapping("/reconciliation/run")
     public ResponseEntity<Void> runReconciliation() throws Exception {
         jobLauncher.run(reconciliationJob, new JobParametersBuilder()
@@ -77,11 +90,16 @@ public class AdminController {
         return ResponseEntity.accepted().build();
     }
 
+    @Operation(summary = "List settlement batches")
+    @ApiResponse(responseCode = "200", description = "Batches")
     @GetMapping("/settlement")
     public ResponseEntity<List<SettlementBatch>> listSettlementBatches() {
         return ResponseEntity.ok(settlementBatchRepository.findAll());
     }
 
+    @Operation(summary = "Retry a failed settlement batch")
+    @ApiResponse(responseCode = "202", description = "Retry launched")
+    @ApiResponse(responseCode = "404", description = "Batch not found")
     @PostMapping("/settlement/{batchId}/retry")
     public ResponseEntity<Void> retrySettlement(@PathVariable UUID batchId) throws Exception {
         SettlementBatch batch = settlementBatchRepository.findById(batchId).orElse(null);

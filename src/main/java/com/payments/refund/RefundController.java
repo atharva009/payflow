@@ -1,5 +1,8 @@
 package com.payments.refund;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/payments")
+@Tag(name = "Refunds", description = "Refund operations")
 public class RefundController {
 
     private final RefundService refundService;
@@ -23,6 +27,11 @@ public class RefundController {
         this.refundService = refundService;
     }
 
+    @Operation(summary = "Refund a captured or settled payment")
+    @ApiResponse(responseCode = "202", description = "Refund accepted")
+    @ApiResponse(responseCode = "400", description = "Refund amount exceeds original")
+    @ApiResponse(responseCode = "409", description = "Payment already refunded")
+    @ApiResponse(responseCode = "422", description = "Payment not refundable")
     @PostMapping("/{id}/refund")
     public ResponseEntity<RefundResponse> refund(
             @PathVariable UUID id,

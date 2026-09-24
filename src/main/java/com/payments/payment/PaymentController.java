@@ -1,5 +1,8 @@
 package com.payments.payment;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/payments")
+@Tag(name = "Payments", description = "Payment lifecycle operations")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -25,6 +29,11 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
+    @Operation(summary = "Create payment")
+    @ApiResponse(responseCode = "202", description = "Payment accepted")
+    @ApiResponse(responseCode = "400", description = "Invalid request or missing idempotency key")
+    @ApiResponse(responseCode = "409", description = "Idempotency conflict or concurrent request")
+    @ApiResponse(responseCode = "422", description = "Business rule violation")
     @PostMapping
     public ResponseEntity<PaymentResponse> createPayment(
             @RequestBody @Valid PaymentRequest request,
@@ -35,12 +44,18 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(toResponse(payment));
     }
 
+    @Operation(summary = "Get payment by ID")
+    @ApiResponse(responseCode = "200", description = "Payment found")
+    @ApiResponse(responseCode = "404", description = "Payment not found")
     @GetMapping("/{id}")
     public ResponseEntity<PaymentDetailResponse> getPayment(@PathVariable UUID id) {
         Payment payment = paymentService.getPayment(id);
         return ResponseEntity.ok(detail(payment));
     }
 
+    @Operation(summary = "Capture authorized payment")
+    @ApiResponse(responseCode = "200", description = "Payment captured")
+    @ApiResponse(responseCode = "422", description = "Invalid state transition")
     @PostMapping("/{id}/capture")
     public ResponseEntity<PaymentDetailResponse> capture(
             @PathVariable UUID id, JwtAuthenticationToken jwtToken) {
@@ -48,6 +63,8 @@ public class PaymentController {
         return ResponseEntity.ok(detail(payment));
     }
 
+    @Operation(summary = "Cancel payment")
+    @ApiResponse(responseCode = "200", description = "Payment cancelled")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<PaymentDetailResponse> cancel(
             @PathVariable UUID id, JwtAuthenticationToken jwtToken) {
