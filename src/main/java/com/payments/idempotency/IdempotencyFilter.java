@@ -109,6 +109,20 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
 
         try {
+            // Double-checked: a concurrent request with the same key may have populated the
+            // cache between our pre-lock check and acquiring the lock. Replay instead of
+            // re-invoking the service (which would no-op and yield a null payment).
+            Optional<CachedResponse> afterLock;
+            try {
+                afterLock = idempotencyService.findCachedResponse(key);
+            } catch (RuntimeException ex) {
+                throw new CacheUnavailableException("Idempotency cache unavailable", ex);
+            }
+            if (afterLock.isPresent()) {
+                replayOrConflict(response, afterLock.get(), requestHash);
+                return;
+            }
+
             ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
             filterChain.doFilter(cachedRequest, responseWrapper);
 
